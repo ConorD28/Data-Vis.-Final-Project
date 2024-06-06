@@ -1,0 +1,102 @@
+---
+title: "Data Vis Final Project"
+author: "Conor Desmond"
+date: '2022-12-08'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#Data Vis. Final Project
+library(maps)
+library(ggplot2)
+library(dplyr)
+library(png)
+library(gifski)
+library(gganimate)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+#Per Capita Gas Consumption graph:
+#https://www.bp.com/en/global/corporate/energy-economics/statistical-review-of-world-energy.html
+#https://ourworldindata.org/grapher/per-capita-gas?tab=map
+gas = read.csv(file.choose())
+head(gas)
+names(gas) = c(names(gas)[1:3], "Gas_Consumption")
+gas2 = gas %>% filter(Year == 2021)
+head(gas2)
+
+world_map = map_data("world")
+
+gas2021 <- gas2 %>% filter(Entity != "World") %>%
+  mutate(colorGroup = cut(Gas_Consumption,
+                          breaks = c(0, 5000, 10000, 20000, 30000, 40000, 140000),
+                          labels = c('0-5,000 kWh', '5,000-10,000 kWh', '10,000-20,000 kWh',
+                                     '20,000-30,000 kWh', '30,000-40,000 kWh', '40,000+ kWh'),
+                          include.lowest = T
+  )
+  )
+
+
+for (i in 1:length(gas2021$Entity)) {
+  if (!gas2021$Entity[i] %in% world_map$region) {
+    print(gas2021$Entity[i])
+  }
+}
+
+gas2021$Entity[gas2021$Entity == 'Czechia'] <- 'Czech Republic'
+gas2021$Entity[gas2021$Entity == 'United States'] <- 'USA'
+gas2021$Entity[gas2021$Entity == 'United Kingom'] <- 'UK'
+
+gasMap <- left_join(world_map, gas2021, by = c('region' = 'Entity'))
+gasMap = gasMap %>% filter(region != "Antarctica")
+
+colors <- c('#edf8fb', 'light green', '#9ebcda', 'navy blue', 
+            '#8856a7', 'red')
+
+ggplot(gasMap, aes(long, lat, group = group, fill = colorGroup)) + geom_polygon(color = "black") + theme_void() +
+  scale_fill_manual(values = colors, na.value = 'grey', drop = F, 
+                    labels = (c('0-5,000 kWh', '5,000-10,000 kWh', '10,000-20,000 kWh',
+                                '20,000-30,000 kWh', '30,000-40,000 kWh', '40,000+ kWh', 'No data'))) +
+  theme(legend.position = "bottom") + labs(fill = "", 
+                                           title = "                        Per Capita Gas Consumption, 2021")
+
+#This graph shows the per capita gas consumption of almost every country in the world in 2021. Gas consumption is measured in kilowatt-hours (kWH). The countries with the highest gas consumption in this graph were Turkmenistan, Kuwait, Qatar, Oman, and United Arab Emirates. They all consumed over 40,000 kWH of gas in 2021l. The US consumed 20,000-30,000 kWH of gas in 2021.
+```
+
+
+```{r pressure, echo=FALSE}
+#Share of Primary Energy from Gas graph:
+#https://ourworldindata.org/grapher/gas-share-energy?tab=chart
+gas_primary = read.csv(file.choose())
+names(gas_primary) = c(names(gas_primary)[1:3], "Gas_Primary_Percentage")
+
+gas_primary2 = gas_primary %>% filter(Entity %in% c("Qatar", "Russia", "United Kingdom", "United States", "China", "South Africa")) %>% mutate(Gas_Primary_Percentage = Gas_Primary_Percentage/100)
+
+ggplot(gas_primary2, aes(Year, Gas_Primary_Percentage, color = Entity)) + geom_line() +
+  theme_minimal() + geom_point() + transition_reveal(Year) + view_follow() +
+  labs(title = "Share of Primary Energy from Gas", x = "", y = "") + theme(panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank(), 
+        panel.grid.minor.y = element_blank(), panel.grid.major.y = element_line(linetype = "dashed")) + guides(color = guide_legend(title = "Countries")) + scale_y_continuous(labels = scales::percent)
+
+#This animated line graph shows the share of primary energy from gas of China, Qatar, Russia, South Africa, United Kingdom, and the United States for each year from 1965 to 2021. From this graph, the country with the highest share of primary energy from gas was Qatar for each of the years. It tended to be around ot above 75%. South Africa tended to have the lowest primary energy from gas for each year, staying around 0%. The US tended to stay around 25-30%.
+```
+
+```{r}
+#Gas Consumption Graph:
+#https://ourworldindata.org/grapher/gas-consumption-by-country?tab=chart
+gasConsump = read.csv(file.choose())
+names(gasConsump) = c(names(gasConsump)[1:3], "Gas_Consumption")
+
+gasConsump2 = gasConsump %>% filter(Entity %in% c("Qatar", "Russia", "United Kingdom", "United States", "China", "South Africa"))
+
+ggplot(gasConsump2, aes(Year, Gas_Consumption, color = Entity)) + theme_minimal() + geom_line() +
+  geom_point() + labs(title = "Gas Consumption", x = "", y = "") + theme(panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank(), 
+        panel.grid.minor.y = element_blank(), panel.grid.major.y = element_line(linetype = "dashed")) + guides(color = guide_legend(title = "Countries")) + transition_reveal(Year) + view_follow()
+
+#This animated line graph shows the gas consumption of China, Qatar, Russia, South Africa, United Kingdom, and the United States for each year from 1965 to 2021. Natural gas consumption is measured in terawatt-hour (TWh) equivalents per year. From this graph, the country with the highest share of primary energy from gas tended to be the United States, tending to be around 50,000 to 70,000 TWh. South Africa tended to be the lowest staying around 0 TWh.
+```
